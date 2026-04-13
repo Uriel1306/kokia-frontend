@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type MutableRefObject, type MouseEvent, type SetStateAction } from 'react';
-import { apiService } from '../services/api';
+import { apiService } from '../services/apiService';
 import { Recording, Timeline, TimelineItem } from '../types';
 
 interface UseTimelineMergeOptions {

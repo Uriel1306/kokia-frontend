@@ -3,6 +3,7 @@ import { ListMusic, Radio, Clock, Save, Trash2, Mic, Square } from 'lucide-react
 import type { Dispatch, SetStateAction } from 'react';
 import { Recording } from '../types';
 import AudioPlayer from './Common/AudioPlayer';
+import RecordingCard from './recordings/RecordingCard';
 
 interface RecordingSectionProps {
   error: string | null;

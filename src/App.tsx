@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Recording, Timeline, TimelineItem, Tab } from './types';
-import { apiService } from './services/api';
+import { apiService } from './services/apiService';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useTimelineMerge } from './hooks/useTimelineMerge';
-import Sidebar from './components/Sidebar';
+import { getStreamUrl, formatTime, getParsedFrequency, validateFrequency, formatFrequencyForDisplay } from './utils/audioUtils';
+import Sidebar from './components/layout/Sidebar';
 import RecordingSection from './components/RecordingSection';
 import TimelineSection from './components/TimelineSection';
 import ArchiveSection from './components/ArchiveSection';
@@ -52,6 +53,14 @@ export default function App() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        await apiService.getStatus();
+      } catch (err) {
+        console.error('Backend connectivity check failed:', err);
+        setError('לא ניתן להתחבר לשרת. וודא שהבאקאנד רץ בפורט 3000.');
+        return;
+      }
+
+      try {
         const [loadedRecordings, loadedTimelines] = await Promise.all([
           apiService.getRecordings(),
           apiService.getTimelines(),
@@ -59,7 +68,7 @@ export default function App() {
 
         setRecordings(loadedRecordings.map(rec => ({
           ...rec,
-          url: rec.streamUrl ?? `http://localhost:3000/api/recordings/${rec.id}/stream`,
+          url: rec.streamUrl ?? getStreamUrl(rec.id),
         })));
         setTimelines(loadedTimelines);
       } catch (err) {
@@ -70,40 +79,6 @@ export default function App() {
 
     loadData();
   }, []);
-
-  const getParsedFrequency = (val: string): number => {
-    const normalizedVal = val.replace(',', '.');
-    let num = parseFloat(normalizedVal);
-    if (!normalizedVal.includes('.') && !isNaN(num) && num > 1000) {
-      return num / 1000;
-    }
-    return num;
-  };
-
-  const formatFrequencyForDisplay = (freq: string | undefined) => {
-    if (!freq) return '';
-    if (freq.includes('.')) return freq;
-    const n = parseInt(freq, 10);
-    if (isNaN(n)) return freq;
-    return (n / 1000).toFixed(3);
-  };
-
-  const validateFrequency = (val: string) => {
-    const num = getParsedFrequency(val);
-    if (isNaN(num)) return 'נא להזין מספר תקין';
-    if (num < 33 || num > 87.975) return 'התדר חייב להיות בין 33 ל-87.975 MHz';
-
-    const remainder = Math.round(num * 1000) % 25;
-    if (remainder !== 0) return 'התדר חייב להיות בקפיצות של 25 קילו-הרץ (למשל 33.025, 33.050)';
-
-    return null;
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const playRecording = async (recording: Recording) => {
     if (currentlyPlaying === recording.id) {
@@ -129,7 +104,7 @@ export default function App() {
         if (item.type === 'recording') {
           const subRec = recordings.find(r => r.id === item.recordingId);
           if (subRec) {
-            const streamUrl = subRec.streamUrl ?? `http://localhost:3000/api/recordings/${subRec.id}/stream`;
+          const streamUrl = subRec.streamUrl ?? getStreamUrl(subRec.id);
             await new Promise((resolve) => {
               const audio = new Audio(streamUrl);
               audioRef.current = audio;
@@ -150,7 +125,7 @@ export default function App() {
         isPreviewPlayingRef.current = false;
       }
     } else {
-      const streamUrl = recording.streamUrl ?? recording.url ?? `http://localhost:3000/api/recordings/${recording.id}/stream`;
+      const streamUrl = recording.streamUrl ?? recording.url ?? getStreamUrl(recording.id);
       const audio = new Audio(streamUrl);
       audioRef.current = audio;
       audio.play();
@@ -304,15 +279,15 @@ export default function App() {
     });
   };
 
-  const scenarios = recordings.filter(r => r.sequence);
-  const regularRecordings = recordings.filter(r => !r.sequence);
+  const scenarios = useMemo(() => recordings.filter(r => r.sequence), [recordings]);
+  const regularRecordings = useMemo(() => recordings.filter(r => !r.sequence), [recordings]);
 
-  const groupedRecordings = regularRecordings.reduce((acc, rec) => {
+  const groupedRecordings = useMemo(() => regularRecordings.reduce((acc, rec) => {
     const freq = 'כל ההקלטות';
     if (!acc[freq]) acc[freq] = [];
     acc[freq].push(rec);
     return acc;
-  }, {} as { [key: string]: Recording[] });
+  }, {} as { [key: string]: Recording[] }), [regularRecordings]);
 
   const toggleGroup = (freq: string) => {
     setExpandedGroups(prev => (prev.includes(freq) ? prev.filter(f => f !== freq) : [...prev, freq]));

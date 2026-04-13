@@ -1,5 +1,5 @@
 import { useState, useRef, type Dispatch, type SetStateAction } from 'react';
-import { apiService } from '../services/api';
+import { apiService } from '../services/apiService';
 import { Recording } from '../types';
 
 interface UseAudioRecorderOptions {
@@ -80,7 +80,11 @@ export const useAudioRecorder = ({
       }, 1000);
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      setError('לא ניתן לגשת למיקרופון. אנא וודא שנתת הרשאות מתאימות.');
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setError('גישה למיקרופון נדחתה. יש לאפשר הרשאת הקלטה בהגדרות הדפדפן כדי להמשיך.');
+      } else {
+        setError('לא ניתן לגשת למיקרופון. אנא וודא שנתת הרשאות מתאימות.');
+      }
     }
   };
 

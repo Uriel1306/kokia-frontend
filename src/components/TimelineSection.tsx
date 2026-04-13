@@ -5,6 +5,8 @@ import { Recording, Timeline, TimelineItem } from '../types';
 import ProgressBar from './Common/ProgressBar';
 import ConflictModal from './Modals/ConflictModal';
 import NamingModal from './Modals/NamingModal';
+import TimelineTrack from './timeline/TimelineTrack';
+import AudioProgress from './shared/AudioProgress';
 
 interface TimelineSectionProps {
   error: string | null;
@@ -433,7 +435,7 @@ export default function TimelineSection({
                     <span>{formatTime(Math.floor(previewCurrentTime))}</span>
                     <span>{formatTime(Math.floor(previewTotalDuration))}</span>
                   </div>
-                  <ProgressBar current={previewCurrentTime} total={previewTotalDuration} onClick={handleProgressBarClick} />
+                  <AudioProgress current={previewCurrentTime} total={previewTotalDuration} onClick={handleProgressBarClick} />
                 </div>
 
                 <div className="flex justify-center gap-4">
