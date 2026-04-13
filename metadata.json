@@ -1,0 +1,7 @@
+{
+  "name": "Remix: קוקייה",
+  "description": "אפליקציה להקלטת שמע עם ניהול פרמטרים כמו שם ותדר.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
