@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type MutableRefObject, type MouseEvent, type SetStateAction } from 'react';
 import { apiService } from '../services/apiService';
+import { getStreamUrl } from '../utils/audioUtils';
 import { Recording, Timeline, TimelineItem } from '../types';
 
 interface UseTimelineMergeOptions {
@@ -202,6 +203,80 @@ export const useTimelineMerge = ({
       setPreviewCurrentTime(startTime);
 
       let accumulatedTime = 0;
+      let preloadAudio: HTMLAudioElement | null = null;
+
+      const playItem = async (item: TimelineItem, offset: number): Promise<void> => {
+        if (!isPreviewPlayingRef.current) return;
+
+        if (item.type === 'recording') {
+          const recording = (recordings || []).find(r => r.id === item.recordingId);
+          if (recording) {
+            const streamUrl = `http://localhost:3001/api/recordings/${recording.id}/stream`;
+            console.log('[Timeline Preview] Playing audio:', streamUrl);
+            const audio = new Audio(streamUrl);
+            audio.crossOrigin = 'anonymous';
+            audio.addEventListener('error', (e) => {
+              console.error('[Timeline Preview] Audio error:', e, 'URL:', streamUrl);
+            });
+            audioRef.current = audio;
+            audio.currentTime = offset;
+
+            // Preload next item if exists
+            const nextIndex = mergedTimeline.indexOf(item) + 1;
+            if (nextIndex < mergedTimeline.length && mergedTimeline[nextIndex].type === 'recording') {
+              const nextRecording = recordings.find(r => r.id === mergedTimeline[nextIndex].recordingId);
+              if (nextRecording) {
+                preloadAudio = new Audio(`http://localhost:3001/api/recordings/${nextRecording.id}/stream`);
+                preloadAudio.crossOrigin = 'anonymous';
+                preloadAudio.preload = 'auto';
+              }
+            }
+
+            return new Promise((resolve) => {
+              const updateTime = () => {
+                if (isPreviewPlayingRef.current) {
+                  setPreviewCurrentTime(accumulatedTime + audio.currentTime);
+                }
+              };
+
+              audio.addEventListener('timeupdate', updateTime);
+              audio.play();
+              audio.onended = () => {
+                audio.removeEventListener('timeupdate', updateTime);
+                resolve();
+              };
+            });
+          }
+        } else {
+          // Delay item
+          const remainingDuration = item.duration - offset;
+          return new Promise((resolve) => {
+            const startDelayTime = Date.now();
+            const delayInterval = setInterval(() => {
+              if (isPreviewPlayingRef.current) {
+                const elapsed = (Date.now() - startDelayTime) / 1000;
+                setPreviewCurrentTime(accumulatedTime + offset + elapsed);
+              } else {
+                clearInterval(delayInterval);
+              }
+            }, 100);
+
+            const timeout = setTimeout(() => {
+              clearInterval(delayInterval);
+              resolve();
+            }, remainingDuration * 1000);
+
+            const checkStop = setInterval(() => {
+              if (!isPreviewPlayingRef.current) {
+                clearTimeout(timeout);
+                clearInterval(delayInterval);
+                clearInterval(checkStop);
+                resolve();
+              }
+            }, 50);
+          });
+        }
+      };
 
       for (let i = 0; i < mergedTimeline.length; i++) {
         if (!isPreviewPlayingRef.current) break;
@@ -217,62 +292,10 @@ export const useTimelineMerge = ({
         setPreviewIndex(i);
         const offset = Math.max(0, startTime - accumulatedTime);
 
-        if (item.type === 'recording') {
-          const recording = recordings.find(r => r.id === item.recordingId);
-          if (recording) {
-            const streamUrl = recording.streamUrl ?? recording.url ?? `http://localhost:3000/api/recordings/${recording.id}/stream`;
-            await new Promise((resolve) => {
-              const audio = new Audio(streamUrl);
-              audioRef.current = audio;
-              audio.currentTime = offset;
-
-              const updateTime = () => {
-                if (isPreviewPlayingRef.current) {
-                  setPreviewCurrentTime(accumulatedTime + audio.currentTime);
-                }
-              };
-
-              audio.addEventListener('timeupdate', updateTime);
-              audio.play();
-              audio.onended = () => {
-                audio.removeEventListener('timeupdate', updateTime);
-                resolve(null);
-              };
-            });
-          }
-        } else {
-          const remainingDuration = item.duration - offset;
-          const startDelayTime = Date.now();
-
-          const delayInterval = setInterval(() => {
-            if (isPreviewPlayingRef.current) {
-              const elapsed = (Date.now() - startDelayTime) / 1000;
-              setPreviewCurrentTime(accumulatedTime + offset + elapsed);
-            } else {
-              clearInterval(delayInterval);
-            }
-          }, 100);
-
-          await new Promise(resolve => {
-            const timeout = setTimeout(() => {
-              clearInterval(delayInterval);
-              resolve(null);
-            }, remainingDuration * 1000);
-
-            const checkStop = setInterval(() => {
-              if (!isPreviewPlayingRef.current) {
-                clearTimeout(timeout);
-                clearInterval(delayInterval);
-                clearInterval(checkStop);
-                resolve(null);
-              }
-            }, 50);
-          });
-        }
+        await playItem(item, offset);
 
         accumulatedTime = itemEndTime;
         startTime = accumulatedTime;
-        if (!isPreviewPlayingRef.current) break;
       }
 
       if (isPreviewPlayingRef.current) {

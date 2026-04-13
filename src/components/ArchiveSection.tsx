@@ -82,7 +82,7 @@ export default function ArchiveSection({
                   <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     {scenarios
                       .filter(rec => !archiveSearchQueries['scenarios_group'] || rec.name.toLowerCase().includes(archiveSearchQueries['scenarios_group'].toLowerCase()))
-                      .map(rec => (
+                      ?.map(rec => (
                         <div key={rec.id} className="bg-slate-50 rounded-2xl p-4 flex items-center gap-4 border border-slate-100 hover:border-blue-200 transition-all group">
                           <AudioPlayer
                             isPlaying={currentlyPlaying === rec.id}
@@ -113,7 +113,7 @@ export default function ArchiveSection({
             <p>אין עדיין הקלטות או תרחישים שמורים.</p>
           </div>
         ) : (
-          (Object.entries(groupedRecordings) as [string, Recording[]][]).map(([freq, items]) => (
+          (Object.entries(groupedRecordings || {}) as [string, Recording[]][]).map(([freq, items]) => (
             <div key={freq} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
               <button
                 onClick={() => toggleGroup(freq)}
@@ -139,7 +139,7 @@ export default function ArchiveSection({
                     exit={{ height: 0, opacity: 0 }}
                     className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4"
                   >
-                    {items.map(rec => (
+                    {(items || []).map(rec => (
                       <div key={rec.id} className="bg-slate-50 rounded-2xl p-4 flex items-center gap-4 border border-slate-100 hover:border-blue-200 transition-all group">
                         <AudioPlayer
                           isPlaying={currentlyPlaying === rec.id}

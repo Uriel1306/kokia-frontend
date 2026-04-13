@@ -151,7 +151,7 @@ export default function RecordingSection({
                   <p>אין הקלטות עדיין</p>
                 </motion.div>
               ) : (
-                recordings.map((rec) => (
+                (recordings || []).map((rec) => (
                   <motion.div
                     key={rec.id}
                     layout

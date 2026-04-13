@@ -23,11 +23,25 @@ export const useAudioRecorder = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const durationRef = useRef<number>(0);
 
+  const ensureMicPermission = async (): Promise<MediaStream> => {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      console.error('Microphone permission error:', err);
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setError('הגישה למיקרופון חסומה. לחץ על סמל המנעול ליד שורת הכתובת בדפדפן ואפשר את המיקרופון.');
+      } else {
+        setError('לא ניתן לגשת למיקרופון. אנא וודא שנתת הרשאות מתאימות.');
+      }
+      throw err;
+    }
+  };
+
   const startRecording = async () => {
     setError(null);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await ensureMicPermission();
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -54,10 +68,11 @@ export const useAudioRecorder = ({
             name: uploaded.name ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
             duration: uploaded.duration ?? finalDuration,
             timestamp: uploaded.timestamp ?? Date.now(),
-            url: uploaded.streamUrl ?? `http://localhost:3000/api/recordings/${uploaded.id}/stream`,
+            url: uploaded.streamUrl ?? `http://localhost:3001/api/recordings/${uploaded.id}/stream`,
           };
 
-          setRecordings(prev => [newRecording, ...prev]);
+          console.log('[Recording] New recording URL:', newRecording.url);
+          setRecordings(prev => [newRecording, ...(prev || [])]);
           setRecordingTime(0);
         } catch (err) {
           console.error(err);
@@ -79,12 +94,8 @@ export const useAudioRecorder = ({
         });
       }, 1000);
     } catch (err) {
-      console.error('Error accessing microphone:', err);
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError('גישה למיקרופון נדחתה. יש לאפשר הרשאת הקלטה בהגדרות הדפדפן כדי להמשיך.');
-      } else {
-        setError('לא ניתן לגשת למיקרופון. אנא וודא שנתת הרשאות מתאימות.');
-      }
+      // Error already handled in ensureMicPermission
+      console.error('Recording start failed:', err);
     }
   };
 

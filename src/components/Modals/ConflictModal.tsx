@@ -6,9 +6,6 @@ interface ConflictModalProps {
   show: boolean;
   setShowConflictModal: Dispatch<SetStateAction<boolean>>;
   mergeTimelines: (autoFix?: boolean) => void;
-  show: boolean;
-  setShowConflictModal: React.Dispatch<React.SetStateAction<boolean>>;
-  mergeTimelines: (autoFix?: boolean) => void;
 }
 
 export default function ConflictModal({ show, setShowConflictModal, mergeTimelines }: ConflictModalProps) {

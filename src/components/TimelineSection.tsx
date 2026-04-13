@@ -162,7 +162,7 @@ export default function TimelineSection({
                 <p>טרם נוצרו צירי זמן. הוסף אחד כדי להתחיל.</p>
               </div>
             ) : (
-              timelines.map(tl => (
+              (timelines || []).map(tl => (
                 <div key={tl.id} className="space-y-4 p-6 bg-slate-50 rounded-3xl border border-slate-100">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export default function TimelineSection({
                             onChange={(e) => updateTimelineSearch(tl.id, { selectedRecordingId: e.target.value })}
                           >
                             <option value="">בחר הקלטה...</option>
-                            {getSortedRecordings(tl.searchQuery, tl.sortMethod).map(r => (
+                            {(getSortedRecordings(tl.searchQuery, tl.sortMethod) || []).map(r => (
                               <option key={r.id} value={r.id}>{r.name} ({r.duration && `${r.duration}s`})</option>
                             ))}
                           </select>
@@ -267,12 +267,12 @@ export default function TimelineSection({
 
                   <Reorder.Group
                     axis="x"
-                    values={tl.items}
+                    values={tl.items || []}
                     onReorder={(newItems) => reorderTimelineItems(tl.id, newItems)}
                     className="flex items-center gap-2 overflow-x-auto py-4 min-h-[140px] custom-scrollbar"
                   >
                     <AnimatePresence mode="popLayout">
-                      {tl.items.map((item) => {
+                      {(tl.items || []).map((item) => {
                         const itemCount = tl.items.length;
                         const minWidth = itemCount > 8 ? 'min-w-[90px]' : itemCount > 5 ? 'min-w-[110px]' : 'min-w-[140px]';
                         const padding = itemCount > 8 ? 'p-2' : 'p-4';
@@ -387,7 +387,7 @@ export default function TimelineSection({
                 </div>
 
                 <div className="bg-slate-900 rounded-3xl p-6 overflow-x-auto custom-scrollbar flex items-center gap-1 min-h-[120px]">
-                  {mergedTimeline.map((item, idx) => {
+                  {(mergedTimeline || []).map((item, idx) => {
                     const startTime = mergedTimeline.slice(0, idx).reduce((acc, it) => acc + it.duration, 0);
                     return (
                       <div key={item.id} className="flex items-center gap-1">

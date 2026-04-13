@@ -1,9 +1,10 @@
 import { formatTime } from '../../utils/audioUtils';
+import type { MouseEvent } from 'react';
 
 interface AudioProgressProps {
   current: number;
   total: number;
-  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onClick?: (event: MouseEvent<HTMLDivElement>) => void;
 }
 
 export default function AudioProgress({ current, total, onClick }: AudioProgressProps) {

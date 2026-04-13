@@ -7,11 +7,6 @@ interface NamingModalProps {
   scenarioName: string;
   setScenarioName: Dispatch<SetStateAction<string>>;
   confirmFinalizeMerge: () => void;
-  show: boolean;
-  setShowNamingModal: React.Dispatch<React.SetStateAction<boolean>>;
-  scenarioName: string;
-  setScenarioName: React.Dispatch<React.SetStateAction<string>>;
-  confirmFinalizeMerge: () => void;
 }
 
 export default function NamingModal({

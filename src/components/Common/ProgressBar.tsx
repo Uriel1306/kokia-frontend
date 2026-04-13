@@ -1,9 +1,10 @@
 import { motion } from 'motion/react';
+import type { MouseEvent } from 'react';
 
 interface ProgressBarProps {
   current: number;
   total: number;
-  onClick: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onClick: (event: MouseEvent<HTMLDivElement>) => void;
 }
 
 export default function ProgressBar({ current, total, onClick }: ProgressBarProps) {
