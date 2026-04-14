@@ -11,7 +11,7 @@ export default function RecordingsPage() {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<'name' | null>(null);
+  const [editingField, setEditingField] = useState<'title' | null>(null);
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -55,10 +55,10 @@ useEffect(() => {
       // Handle sequence playback
       for (let i = 0; i < recording.sequence.length; i++) {
         const item = recording.sequence[i];
-        if (item.type === 'recording') {
-          const subRec = (recordings || []).find(r => r.id === item.recordingId);
+        if (item.type === 'audio') {
+          const subRec = (recordings || []).find((r) => r.id === item.recordingId);
           if (subRec) {
-            const streamUrl = `http://localhost:3001/api/recordings/${subRec.id}/stream`;
+            const streamUrl = apiService.getStreamUrl(subRec.id);
             console.log('[Playback Sequence] Playing:', streamUrl);
             await new Promise<void>((resolve) => {
               const audio = new Audio(streamUrl);
@@ -73,7 +73,7 @@ useEffect(() => {
             });
           }
         } else {
-          await new Promise(resolve => setTimeout(resolve, item.duration * 1000));
+          await new Promise((resolve) => setTimeout(resolve, item.seconds * 1000));
         }
 
         if (currentlyPlaying !== recording.id) break;
@@ -84,7 +84,7 @@ useEffect(() => {
         setIsLoadingAudio(false);
       }
     } else {
-      const streamUrl = `http://localhost:3001/api/recordings/${recording.id}/stream`;
+      const streamUrl = apiService.getStreamUrl(recording.id);
       console.log('[Playback] Playing single recording:', streamUrl);
       const audio = new Audio(streamUrl);
       audio.crossOrigin = 'anonymous';
@@ -126,27 +126,27 @@ useEffect(() => {
 
   const downloadRecording = (recording: Recording) => {
     const link = document.createElement('a');
-    link.href = recording.url;
-    link.download = `${recording.name}.wav`;
+    link.href = recording.url ?? apiService.getStreamUrl(recording.id);
+    link.download = `${recording.title || recording.name}.wav`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const startEditing = (recording: Recording, field: 'name') => {
+  const startEditing = (recording: Recording, field: 'title') => {
     setEditingId(recording.id);
     setEditingField(field);
-    setEditValue(recording.name);
+    setEditValue(recording.title || recording.name || '');
     setError(null);
   };
 
   const saveEdit = (id: string) => {
-    if (editingField === 'name') {
+    if (editingField === 'title') {
       if (!editValue.trim()) {
         setError('שם ההקלטה לא יכול להיות ריק');
         return;
       }
-      setRecordings(prev => prev.map(r => (r.id === id ? { ...r, name: editValue.trim() } : r)));
+      setRecordings((prev) => prev.map((r) => (r.id === id ? { ...r, title: editValue.trim(), name: editValue.trim() } : r)));
     }
 
     setError(null);

@@ -27,13 +27,13 @@ export default function TimelineTrack({
     >
       <div className="flex items-center gap-2">
         <GripVertical className="w-4 h-4 text-slate-400 cursor-move" />
-        <div className={`w-3 h-3 rounded-full ${item.type === 'recording' ? 'bg-blue-500' : 'bg-slate-400'}`} />
+        <div className={`w-3 h-3 rounded-full ${item.type === 'audio' ? 'bg-blue-500' : 'bg-slate-400'}`} />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-slate-900 truncate">{item.name}</span>
-          {item.type === 'recording' && item.frequency && (
+          {item.type === 'audio' && item.frequency && (
             <div className="flex items-center gap-1 text-xs text-slate-500">
               <Radio className="w-3 h-3" />
               <span>{formatFrequencyForDisplay(item.frequency)} MHz</span>
@@ -42,7 +42,7 @@ export default function TimelineTrack({
         </div>
         <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
           <Clock className="w-3 h-3" />
-          <span>{item.duration}s</span>
+          <span>{item.type === 'delay' ? item.seconds : item.duration}s</span>
         </div>
       </div>
 

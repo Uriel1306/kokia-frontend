@@ -37,6 +37,33 @@ export const useAudioRecorder = ({
     }
   };
 
+  const getAudioDurationFromBlob = (blob: Blob): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.preload = 'metadata';
+
+      const cleanup = () => {
+        URL.revokeObjectURL(url);
+      };
+
+      audio.addEventListener('loadedmetadata', () => {
+        cleanup();
+        const duration = audio.duration;
+        if (!duration || isNaN(duration) || duration <= 0) {
+          reject(new Error('Invalid audio duration'));
+        } else {
+          resolve(duration);
+        }
+      });
+
+      audio.addEventListener('error', () => {
+        cleanup();
+        reject(new Error('Unable to read audio duration'));
+      });
+    });
+  };
+
   const startRecording = async () => {
     setError(null);
 
@@ -55,20 +82,37 @@ export const useAudioRecorder = ({
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const finalDuration = durationRef.current;
+        let finalDuration = durationRef.current;
+
+        try {
+          finalDuration = Math.round(await getAudioDurationFromBlob(audioBlob));
+        } catch (durationError) {
+          console.error('Duration extraction failed:', durationError);
+          setError('לא ניתן לחשב את משך ההקלטה. אנא נסה שוב.');
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
+        if (!finalDuration || isNaN(finalDuration) || finalDuration <= 0) {
+          setError('משך ההקלטה אינו תקין. אנא נסה שוב.');
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
 
         try {
           const uploaded = await apiService.uploadRecording(
             audioBlob,
-            recordingName || `הקלטה ${recordingsCount + 1}`
+            recordingName || `הקלטה ${recordingsCount + 1}`,
+            finalDuration
           );
 
           const newRecording: Recording = {
             ...uploaded,
-            name: uploaded.name ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
+            title: uploaded.title ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
+            name: uploaded.title ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
             duration: uploaded.duration ?? finalDuration,
-            timestamp: uploaded.timestamp ?? Date.now(),
-            url: uploaded.streamUrl ?? `http://localhost:3001/api/recordings/${uploaded.id}/stream`,
+            createdAt: uploaded.createdAt ?? new Date().toISOString(),
+            url: apiService.getStreamUrl(uploaded.id),
           };
 
           console.log('[Recording] New recording URL:', newRecording.url);

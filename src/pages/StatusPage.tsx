@@ -10,7 +10,7 @@ export default function StatusPage() {
     const checkStatus = async () => {
       try {
         const response = await apiService.getStatus();
-        setStatus(response.status);
+        setStatus(response.connected ? 'מחובר' : 'מנותק');
         setError(null);
       } catch (err) {
         console.error('Status check failed:', err);

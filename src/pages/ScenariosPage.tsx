@@ -1,20 +1,27 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Recording, Timeline, TimelineItem } from '../types';
-import { apiService } from '../services/apiService';
-import { useTimelineMerge } from '../hooks/useTimelineMerge';
-import { getParsedFrequency, validateFrequency, formatFrequencyForDisplay, formatTime } from '../utils/audioUtils';
-import TimelineSection from '../components/TimelineSection';
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Recording, Timeline, TimelineItem } from "../types";
+import { apiService } from "../services/apiService";
+import { useTimelineMerge } from "../hooks/useTimelineMerge";
+import {
+  getParsedFrequency,
+  validateFrequency,
+  formatFrequencyForDisplay,
+  formatTime,
+} from "../utils/audioUtils";
+import TimelineSection from "../components/TimelineSection";
 
 export default function ScenariosPage() {
   const [timelines, setTimelines] = useState<Timeline[]>([]);
   const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [newTimelineName, setNewTimelineName] = useState('');
-  const [newTimelineFrequency, setNewTimelineFrequency] = useState('');
+  const [newTimelineName, setNewTimelineName] = useState("");
+  const [newTimelineFrequency, setNewTimelineFrequency] = useState("");
   const [showConflictModal, setShowConflictModal] = useState(false);
-  const [mergingStatus, setMergingStatus] = useState<'idle' | 'merging' | 'preview' | 'done'>('idle');
+  const [mergingStatus, setMergingStatus] = useState<
+    "idle" | "merging" | "preview" | "done"
+  >("idle");
   const [mergedTimeline, setMergedTimeline] = useState<TimelineItem[]>([]);
   const [showNamingModal, setShowNamingModal] = useState(false);
-  const [scenarioName, setScenarioName] = useState('');
+  const [scenarioName, setScenarioName] = useState("");
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
@@ -25,135 +32,218 @@ export default function ScenariosPage() {
   const isPreviewPlayingRef = useRef(false);
 
   useEffect(() => {
-    const total = mergedTimeline.reduce((acc, item) => acc + item.duration, 0);
+    let total = 0;
+    for (const item of mergedTimeline) {
+      if (item.type === "delay") {
+        total += item.seconds;
+      } else if (item.type === "audio") {
+        const rec = recordings.find((r) => r.id === item.recordingId);
+        total += rec?.duration ?? item.duration ?? 0;
+      }
+    }
     setPreviewTotalDuration(total);
     setPreviewCurrentTime(0);
-  }, [mergedTimeline]);
+  }, [mergedTimeline, recordings]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [loadedRecordings, loadedTimelines] = await Promise.all([
-          apiService.getRecordings(),
-          apiService.getTimelines(),
-        ]);
+        const loadedRecordings = await apiService.getRecordings();
 
-        console.log('[Scenarios] Loaded recordings:', loadedRecordings.length);
-        setRecordings((loadedRecordings || []).map(rec => ({
-          ...rec,
-          url: rec.streamUrl ?? `http://localhost:3001/api/recordings/${rec.id}/stream`,
-        })));
-        setTimelines((loadedTimelines || []).map(tl => ({
-          ...tl,
-          items: tl.items || [],
-          searchQuery: tl.searchQuery || '',
-          sortMethod: tl.sortMethod || 'newest',
-          selectedRecordingId: tl.selectedRecordingId || '',
-        })));
+        console.log("[Scenarios] Loaded recordings:", loadedRecordings.length);
+
+        setRecordings(
+          loadedRecordings.map((rec) => ({
+            ...rec,
+            name: rec.title,
+            url: apiService.getStreamUrl(rec.id),
+          })),
+        );
       } catch (err) {
         console.error(err);
-        setError('לא ניתן לטעון הקלטות או תרחישים מהשרת. אנא נסה מאוחר יותר.');
+        setError("לא ניתן לטעון הקלטות מהשרת. אנא נסה מאוחר יותר.");
       }
     };
 
     loadData();
   }, []);
 
+  const updateTimelineSearch = (
+    timelineId: string,
+    updates: Partial<
+      Pick<Timeline, "searchQuery" | "sortMethod" | "selectedRecordingId">
+    >,
+  ) => {
+    setTimelines((prev) =>
+      prev.map((tl) => (tl.id === timelineId ? { ...tl, ...updates } : tl)),
+    );
+  };
+
   const addTimeline = () => {
     if (!newTimelineName.trim()) return;
-    const normalizedFreq = newTimelineFrequency.replace(',', '.');
+    const normalizedFreq = newTimelineFrequency.replace(",", ".");
     const freqError = validateFrequency(normalizedFreq);
     if (freqError) {
       setError(freqError);
       return;
     }
     const num = getParsedFrequency(normalizedFreq);
-    const digitFreq = Math.round(num * 1000).toString();
+    const freqAsNumber = Math.round(num * 1000);
+
     const newTimeline: Timeline = {
       id: crypto.randomUUID(),
+      title: newTimelineName,
       name: newTimelineName,
-      frequency: digitFreq,
+      frequency: freqAsNumber,
+      sequence: [],
       items: [],
-      searchQuery: '',
-      sortMethod: 'newest',
-      selectedRecordingId: '',
+      createdAt: new Date().toISOString(),
+      searchQuery: "",
+      sortMethod: "newest",
+      selectedRecordingId: "",
     };
     setTimelines([...timelines, newTimeline]);
-    setNewTimelineName('');
-    setNewTimelineFrequency('');
+    setNewTimelineName("");
+    setNewTimelineFrequency("");
     setError(null);
   };
+  const addItemToTimeline = (timelineId: string, item: TimelineItem) => {
+    setTimelines((prev) => {
+      // מוצאים את התרחיש שאליו מוסיפים כדי לקחת את השם שלו
+      const targetTimeline = prev.find((tl) => tl.id === timelineId);
+      const timelineName = targetTimeline
+        ? targetTimeline.title
+        : "תרחיש לא ידוע";
 
-  const updateTimelineSearch = (timelineId: string, updates: Partial<Pick<Timeline, 'searchQuery' | 'sortMethod' | 'selectedRecordingId'>>) => {
-    setTimelines(prev => prev.map(tl => (tl.id === timelineId ? { ...tl, ...updates } : tl)));
-  };
+      return prev.map((tl) => {
+        if (tl.id === timelineId) {
+          // מוודאים שהפריט שנוסף מקבל את שם התרחיש
+          const itemWithOrigin = {
+            ...item,
+            OriginalTimeline: item.OriginalTimeline || timelineName,
+          };
 
-  const addItemToTimeline = (timelineId: string, item: Omit<TimelineItem, 'id'>) => {
-    setTimelines(prev => prev.map(tl => {
-      if (tl.id === timelineId) {
-        const currentItems = tl.items || [];
-        const newItems = [...currentItems, { ...item, id: crypto.randomUUID() }];
-        if (item.type === 'recording') {
-          const possibleDelays = [0.5, 1, 1.5, 2];
-          const randomDelay = possibleDelays[Math.floor(Math.random() * possibleDelays.length)];
-          newItems.push({
-            id: crypto.randomUUID(),
-            type: 'delay',
-            duration: randomDelay,
-            name: 'השהיה אקראית',
-          });
+          const newSequence = [...tl.sequence, itemWithOrigin];
+          const newItems = [...(tl.items || []), itemWithOrigin];
+
+          if (itemWithOrigin.type === "audio") {
+            const possibleDelays = [0.5, 1, 1.5, 2];
+            const randomDelay =
+              possibleDelays[Math.floor(Math.random() * possibleDelays.length)];
+
+            // יצירת פריט ההשהיה עם השדה החדש
+            const delayItem: TimelineItem = {
+              type: "delay",
+              seconds: randomDelay,
+              id: crypto.randomUUID(),
+              duration: randomDelay,
+              name: "השהיה אקראית",
+              OriginalTimeline: timelineName, // <--- הוספנו כאן!
+            };
+
+            newSequence.push(delayItem);
+            newItems.push(delayItem);
+          }
+          return { ...tl, sequence: newSequence, items: newItems };
         }
-        return { ...tl, items: newItems };
-      }
-      return tl;
-    }));
+        return tl;
+      });
+    });
   };
 
   const removeItemFromTimeline = (timelineId: string, itemId: string) => {
-    setTimelines(prev => prev.map(tl => {
-      if (tl.id === timelineId) {
-        return { ...tl, items: (tl.items || []).filter(i => i.id !== itemId) };
-      }
-      return tl;
-    }));
+    setTimelines((prev) =>
+      prev.map((tl) => {
+        if (tl.id === timelineId) {
+          const newSequence = tl.sequence.filter((item) => item.id !== itemId);
+          const newItems = (tl.items || []).filter(
+            (item) => item.id !== itemId,
+          );
+          return { ...tl, sequence: newSequence, items: newItems };
+        }
+        return tl;
+      }),
+    );
   };
 
-  const updateDelayDuration = (timelineId: string, itemId: string, newDuration: number) => {
-    setTimelines(prev => prev.map(tl => {
-      if (tl.id === timelineId) {
-        return {
-          ...tl,
-          items: (tl.items || []).map(item => item.id === itemId ? { ...item, duration: Math.max(0.5, newDuration) } : item),
-        };
-      }
-      return tl;
-    }));
+  const updateDelayDuration = (
+    timelineId: string,
+    itemId: string,
+    newDuration: number,
+  ) => {
+    setTimelines((prev) =>
+      prev.map((tl) => {
+        if (tl.id === timelineId) {
+          const newSequence = tl.sequence.map((item) =>
+            item.id === itemId && item.type === "delay"
+              ? {
+                  ...item,
+                  seconds: Math.max(0.5, newDuration),
+                  duration: Math.max(0.5, newDuration),
+                }
+              : item,
+          );
+          const newItems = (tl.items || []).map((item) =>
+            item.id === itemId && item.type === "delay"
+              ? {
+                  ...item,
+                  seconds: Math.max(0.5, newDuration),
+                  duration: Math.max(0.5, newDuration),
+                }
+              : item,
+          );
+          return { ...tl, sequence: newSequence, items: newItems };
+        }
+        return tl;
+      }),
+    );
   };
 
-  const reorderTimelineItems = (timelineId: string, newItems: TimelineItem[]) => {
-    setTimelines(prev => prev.map(tl => (tl.id === timelineId ? { ...tl, items: newItems } : tl)));
+  const reorderTimelineItems = (
+    timelineId: string,
+    newSequence: TimelineItem[],
+  ) => {
+    setTimelines((prev) =>
+      prev.map((tl) =>
+        tl.id === timelineId
+          ? { ...tl, sequence: newSequence, items: newSequence }
+          : tl,
+      ),
+    );
   };
 
   const removeTimeline = (timelineId: string) => {
-    setTimelines(prev => prev.filter(tl => tl.id !== timelineId));
+    setTimelines((prev) => prev.filter((tl) => tl.id !== timelineId));
   };
 
-  const getSortedRecordings = (query: string = '', sortMethod: string = 'newest') => {
+  const getSortedRecordings = (
+    query: string = "",
+    sortMethod: string = "newest",
+  ) => {
     let filtered = [...recordings];
     if (query) {
-      filtered = filtered.filter(r => r.name.toLowerCase().includes(query.toLowerCase()));
+      filtered = filtered.filter((r) =>
+        r.title.toLowerCase().includes(query.toLowerCase()),
+      );
     }
 
     return filtered.sort((a, b) => {
       switch (sortMethod) {
-        case 'newest':
-          return b.timestamp - a.timestamp;
-        case 'oldest':
-          return a.timestamp - b.timestamp;
-        case 'alphabetical':
-          return a.name.localeCompare(b.name, 'he');
-        case 'numerical':
-          return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        case "newest":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "oldest":
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        case "alphabetical":
+          return a.title.localeCompare(b.title, "he");
+        case "numerical":
+          return a.title.localeCompare(b.title, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
         default:
           return 0;
       }
@@ -167,7 +257,7 @@ export default function ScenariosPage() {
     setPreviewIndex(-1);
     setPreviewCurrentTime(0);
     setMergedTimeline([]);
-    setMergingStatus('idle');
+    setMergingStatus("idle");
   };
 
   const timelineMerge = useTimelineMerge({
@@ -198,12 +288,12 @@ export default function ScenariosPage() {
       newTimelineFrequency={newTimelineFrequency}
       setNewTimelineFrequency={setNewTimelineFrequency}
       addTimeline={addTimeline}
-      updateTimelineSearch={updateTimelineSearch}
       getSortedRecordings={getSortedRecordings}
       recordings={recordings}
       addItemToTimeline={addItemToTimeline}
       removeItemFromTimeline={removeItemFromTimeline}
       updateDelayDuration={updateDelayDuration}
+      updateTimelineSearch={updateTimelineSearch}
       reorderTimelineItems={reorderTimelineItems}
       removeTimeline={removeTimeline}
       mergingStatus={mergingStatus}

@@ -40,7 +40,7 @@ export const useTimelineMerge = ({
 }: UseTimelineMergeOptions) => {
   const mergeTimelines = useCallback(
     async (autoFix: boolean = false) => {
-      const activeTimelines = timelines.filter(tl => tl.items.length > 0);
+      const activeTimelines = timelines.filter((tl) => (tl.items || tl.sequence || []).length > 0);
 
       if (!autoFix && activeTimelines.length > 1) {
         setShowConflictModal(true);
@@ -50,52 +50,55 @@ export const useTimelineMerge = ({
       setShowConflictModal(false);
       setMergingStatus('merging');
 
-      interface AbsoluteItem extends TimelineItem {
+      type AbsoluteItem = TimelineItem & {
         absStart: number;
         absEnd: number;
         timelineId: string;
         timelineName: string;
-        frequency: string;
+        frequency: number;
         isPriority: boolean;
-      }
+      };
 
+      type AudioAbsoluteItem = AbsoluteItem & { type: 'audio'; recordingId?: string };
       let timelineData: { [id: string]: AbsoluteItem[] } = {};
 
-      activeTimelines.forEach(tl => {
+      activeTimelines.forEach((tl) => {
         let currentOffset = 0;
-        const isPriority = tl.name.includes('גדודי');
+        const isPriority = (tl.name ?? tl.title).includes('גדודי');
         const items: AbsoluteItem[] = [];
+        const sourceItems = tl.items || tl.sequence || [];
 
-        tl.items.forEach(item => {
+        sourceItems.forEach((item) => {
+          const itemDuration = item.type === 'delay' ? item.seconds : item.duration ?? 0;
           items.push({
             ...item,
             absStart: currentOffset,
-            absEnd: currentOffset + item.duration,
+            absEnd: currentOffset + itemDuration,
             timelineId: tl.id,
-            timelineName: tl.name,
+            timelineName: tl.name ?? tl.title,
             frequency: tl.frequency,
             isPriority,
           });
-          currentOffset += item.duration;
+          currentOffset += itemDuration;
         });
 
         timelineData[tl.id] = items;
       });
 
-      const priorityTlId = activeTimelines.find(tl => tl.name.includes('גדודי'))?.id;
+      const priorityTlId = activeTimelines.find((tl) => (tl.name ?? tl.title).includes('גדודי'))?.id;
       const priorityItems = priorityTlId ? timelineData[priorityTlId] : [];
-      const priorityRecordings = priorityItems.filter(i => i.type === 'recording');
+      const priorityAudioItems = priorityItems.filter((i) => i.type === 'audio');
 
-      Object.keys(timelineData).forEach(tlId => {
+      Object.keys(timelineData).forEach((tlId) => {
         if (tlId === priorityTlId) return;
 
         let items = timelineData[tlId];
 
         for (let i = 0; i < items.length; i++) {
-          if (items[i].type !== 'recording') continue;
+          if (items[i].type !== 'audio') continue;
 
-          const overlap = priorityRecordings.find(pr =>
-            items[i].absStart < pr.absEnd && items[i].absEnd > pr.absStart
+          const overlap = priorityAudioItems.find(
+            (pr) => items[i].absStart < pr.absEnd && items[i].absEnd > pr.absStart
           );
 
           if (overlap) {
@@ -108,49 +111,51 @@ export const useTimelineMerge = ({
         }
       });
 
-      let allRecordings: AbsoluteItem[] = [];
-      Object.values(timelineData).forEach(items => {
-        allRecordings.push(...items.filter(i => i.type === 'recording'));
+      let allAudioItems: AudioAbsoluteItem[] = [];
+      Object.values(timelineData).forEach((items) => {
+        allAudioItems.push(...items.filter((i): i is AudioAbsoluteItem => i.type === 'audio'));
       });
 
-      allRecordings.sort((a, b) => {
+      allAudioItems.sort((a, b) => {
         if (a.absStart !== b.absStart) return a.absStart - b.absStart;
         return (a.isPriority ? 0 : 1) - (b.isPriority ? 0 : 1);
       });
 
-      let finalRecordings: AbsoluteItem[] = [];
+      let finalAudioItems: AudioAbsoluteItem[] = [];
       let lastEnd = 0;
 
-      allRecordings.forEach(rec => {
+      allAudioItems.forEach((rec) => {
         if (rec.absStart < lastEnd) {
           const shift = lastEnd - rec.absStart;
           rec.absStart += shift;
           rec.absEnd += shift;
         }
-        finalRecordings.push(rec);
+        finalAudioItems.push(rec);
         lastEnd = rec.absEnd;
       });
 
       let finalSequence: TimelineItem[] = [];
       let currentTime = 0;
 
-      finalRecordings.forEach(rec => {
+      finalAudioItems.forEach((rec) => {
         if (rec.absStart > currentTime) {
           finalSequence.push({
-            id: crypto.randomUUID(),
             type: 'delay',
+            seconds: rec.absStart - currentTime,
+            id: crypto.randomUUID(),
             duration: rec.absStart - currentTime,
+            name: 'השהיה',
           });
         }
 
         finalSequence.push({
+          type: 'audio',
           id: rec.id,
-          type: 'recording',
-          recordingId: rec.recordingId,
+          frequency: rec.frequency,
+          recordingId: rec.recordingId ?? rec.id,
           name: rec.name,
           duration: rec.duration,
           timelineName: rec.timelineName,
-          frequency: rec.frequency,
         });
 
         currentTime = rec.absEnd;
@@ -171,8 +176,9 @@ export const useTimelineMerge = ({
     setMergingStatus('merging');
 
     try {
-      const savedTimeline = await apiService.saveTimeline(scenarioName, mergedTimeline);
-      setTimelines(prev => [savedTimeline as Timeline, ...prev]);
+      const frequency = timelines[0]?.frequency ?? 0;
+      const savedTimeline = await apiService.createTimeline(scenarioName, frequency, mergedTimeline);
+      setTimelines((prev) => [savedTimeline as Timeline, ...prev]);
       setMergedTimeline([]);
       setPreviewIndex(-1);
       setIsPreviewPlaying(false);
@@ -208,10 +214,10 @@ export const useTimelineMerge = ({
       const playItem = async (item: TimelineItem, offset: number): Promise<void> => {
         if (!isPreviewPlayingRef.current) return;
 
-        if (item.type === 'recording') {
-          const recording = (recordings || []).find(r => r.id === item.recordingId);
+        if (item.type === 'audio') {
+          const recording = (recordings || []).find((r) => r.id === item.recordingId);
           if (recording) {
-            const streamUrl = `http://localhost:3001/api/recordings/${recording.id}/stream`;
+            const streamUrl = getStreamUrl(recording.id);
             console.log('[Timeline Preview] Playing audio:', streamUrl);
             const audio = new Audio(streamUrl);
             audio.crossOrigin = 'anonymous';
@@ -223,12 +229,15 @@ export const useTimelineMerge = ({
 
             // Preload next item if exists
             const nextIndex = mergedTimeline.indexOf(item) + 1;
-            if (nextIndex < mergedTimeline.length && mergedTimeline[nextIndex].type === 'recording') {
-              const nextRecording = recordings.find(r => r.id === mergedTimeline[nextIndex].recordingId);
-              if (nextRecording) {
-                preloadAudio = new Audio(`http://localhost:3001/api/recordings/${nextRecording.id}/stream`);
-                preloadAudio.crossOrigin = 'anonymous';
-                preloadAudio.preload = 'auto';
+            if (nextIndex < mergedTimeline.length) {
+              const nextItem = mergedTimeline[nextIndex];
+              if (nextItem.type === 'audio') {
+                const nextRecording = recordings.find((r) => r.id === nextItem.recordingId);
+                if (nextRecording) {
+                  preloadAudio = new Audio(getStreamUrl(nextRecording.id));
+                  preloadAudio.crossOrigin = 'anonymous';
+                  preloadAudio.preload = 'auto';
+                }
               }
             }
 
@@ -249,7 +258,7 @@ export const useTimelineMerge = ({
           }
         } else {
           // Delay item
-          const remainingDuration = item.duration - offset;
+          const remainingDuration = item.seconds - offset;
           return new Promise((resolve) => {
             const startDelayTime = Date.now();
             const delayInterval = setInterval(() => {
@@ -282,7 +291,8 @@ export const useTimelineMerge = ({
         if (!isPreviewPlayingRef.current) break;
 
         const item = mergedTimeline[i];
-        const itemEndTime = accumulatedTime + item.duration;
+        const itemDuration = item.type === 'delay' ? item.seconds : item.duration ?? 0;
+        const itemEndTime = accumulatedTime + itemDuration;
 
         if (itemEndTime <= startTime) {
           accumulatedTime = itemEndTime;

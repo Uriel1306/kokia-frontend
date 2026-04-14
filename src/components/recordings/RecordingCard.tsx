@@ -79,7 +79,7 @@ export default function RecordingCard({
             </div>
           ) : (
             <>
-              <h3 className="text-sm font-semibold text-slate-900 truncate">{recording.name}</h3>
+              <h3 className="text-sm font-semibold text-slate-900 truncate">{recording.title || recording.name}</h3>
               <p className="text-xs text-slate-500 mt-1">{formatTime(recording.duration)}</p>
             </>
           )}
