@@ -17,11 +17,15 @@ export const getParsedFrequency = (val: string): number => {
   return num;
 };
 
-export const formatFrequencyForDisplay = (freq: string | undefined): string => {
-  if (!freq) return '';
-  if (freq.includes('.')) return freq;
-  const n = parseInt(freq, 10);
-  if (isNaN(n)) return freq;
+export const formatFrequencyForDisplay = (freq: number | string | undefined): string => {
+  if (!freq && freq !== 0) return '';
+  if (typeof freq === 'number') {
+    // If it's already a number, assume it's in the stored format (e.g., 33025 for 33.025 MHz)
+    return (freq / 1000).toFixed(3);
+  }
+  if ((freq as string).includes('.')) return freq as string;
+  const n = parseInt(freq as string, 10);
+  if (isNaN(n)) return freq as string;
   return (n / 1000).toFixed(3);
 };
 

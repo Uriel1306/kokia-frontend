@@ -1,31 +1,60 @@
-export interface TimelineItem {
-  id: string;
-  type: 'recording' | 'delay';
-  recordingId?: string;
-  name?: string;
-  duration: number;
-  timelineName?: string;
-  frequency?: string;
-}
+// ============================================================================
+// Frontend Type Definitions - API Contract + UI helpers
+// ============================================================================
 
 export interface Recording {
   id: string;
   title: string;
-  url: string;
-  streamUrl?: string;
   duration: number;
-  createdAt: number;
+  createdAt: string;
+  streamUrl: string;
+
+  // Legacy / UI compatible fields
+  name?: string;
+  url?: string;
   sequence?: TimelineItem[];
 }
 
+export type TimelineItem =
+  | {
+      type: "audio";
+      id: string;
+      frequency: number;
+      recordingId?: string;
+      name?: string;
+      OriginalTimeline: string;
+      duration?: number;
+      timelineName?: string;
+    }
+  | {
+      type: "delay";
+      seconds: number;
+      id?: string;
+      OriginalTimeline: string;
+      duration?: number;
+      name?: string;
+    };
+
 export interface Timeline {
   id: string;
-  name: string;
-  frequency: string;
-  items: TimelineItem[];
+  title: string;
+  sequence: TimelineItem[];
+  createdAt: string;
+  frequency: number;
+
+  // UI-only fields for local state and legacy compatibility
+  name?: string;
+  items?: TimelineItem[];
   searchQuery?: string;
-  sortMethod?: 'newest' | 'oldest' | 'alphabetical' | 'numerical';
+  sortMethod?: "newest" | "oldest" | "alphabetical" | "numerical";
   selectedRecordingId?: string;
 }
 
-export type Tab = 'recordings' | 'scenarios' | 'archive';
+export interface SystemStatus {
+  online: boolean;
+  piConnected: boolean;
+  diskSpace: string;
+  uptime: string;
+}
+
+export type Tab = "recordings" | "scenarios" | "archive";

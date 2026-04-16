@@ -18,10 +18,10 @@ interface RecordingSectionProps {
   currentlyPlaying: string | null;
   playRecording: (recording: Recording) => void;
   editingId: string | null;
-  editingField: 'name' | null;
+  editingField: 'title' | null;
   editValue: string;
   setEditValue: Dispatch<SetStateAction<string>>;
-  startEditing: (recording: Recording, field: 'name') => void;
+  startEditing: (recording: Recording, field: 'title') => void;
   saveEdit: (id: string) => void;
   deleteRecording: (id: string) => void;
   downloadRecording: (recording: Recording) => void;
@@ -173,7 +173,7 @@ export default function RecordingSection({
                       />
 
                       <div className="flex-1 min-w-0">
-                        {editingId === rec.id && editingField === 'name' ? (
+                        {editingId === rec.id && editingField === 'title' ? (
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
@@ -205,6 +205,11 @@ export default function RecordingSection({
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {rec.createdAt}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                        <span className="flex items-center gap-1">
+                          {rec.createdAt}
                           </span>
                         </div>
                       </div>

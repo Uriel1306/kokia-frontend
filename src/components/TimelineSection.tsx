@@ -17,10 +17,10 @@ interface TimelineSectionProps {
   newTimelineFrequency: string;
   setNewTimelineFrequency: Dispatch<SetStateAction<string>>;
   addTimeline: () => void;
-  updateTimelineSearch: (timelineId: string, updates: Partial<Pick<Timeline, 'searchQuery' | 'sortMethod' | 'selectedRecordingId'>>) => void;
   getSortedRecordings: (query?: string, sortMethod?: string) => Recording[];
   recordings: Recording[];
-  addItemToTimeline: (timelineId: string, item: Omit<TimelineItem, 'id'>) => void;
+  updateTimelineSearch: (timelineId: string, updates: Partial<Pick<Timeline, 'searchQuery' | 'sortMethod' | 'selectedRecordingId'>>) => void;
+  addItemToTimeline: (timelineId: string, item: TimelineItem) => void;
   removeItemFromTimeline: (timelineId: string, itemId: string) => void;
   updateDelayDuration: (timelineId: string, itemId: string, newDuration: number) => void;
   reorderTimelineItems: (timelineId: string, newItems: TimelineItem[]) => void;
@@ -43,7 +43,7 @@ interface TimelineSectionProps {
   setScenarioName: Dispatch<SetStateAction<string>>;
   confirmFinalizeMerge: () => Promise<void>;
   cancelPreview: () => void;
-  formatFrequencyForDisplay: (freq: string | undefined) => string;
+  formatFrequencyForDisplay: (freq: number | undefined) => string;
   formatTime: (seconds: number) => string;
 }
 
@@ -166,7 +166,7 @@ export default function TimelineSection({
                 <div key={tl.id} className="space-y-4 p-6 bg-slate-50 rounded-3xl border border-slate-100">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <h3 className="font-bold text-lg text-slate-800">{tl.name}</h3>
+                      <h3 className="font-bold text-lg text-slate-800">{tl.title}</h3>
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                         {formatFrequencyForDisplay(tl.frequency)} MHz
                       </span>
@@ -192,8 +192,17 @@ export default function TimelineSection({
                         </div>
                         <button
                           onClick={() => {
-                            const rec = recordings.find(r => r.id === tl.selectedRecordingId);
-                            if (rec) addItemToTimeline(tl.id, { type: 'recording', recordingId: rec.id, name: rec.name, duration: rec.duration });
+                            const rec = recordings.find((r) => r.id === tl.selectedRecordingId);
+                            if (rec)
+                              addItemToTimeline(tl.id, {
+                                type: 'audio',
+                                id: crypto.randomUUID(),
+                                frequency: tl.frequency,
+                                recordingId: rec.id,
+                                name: rec.title,
+                                duration: rec.duration,
+                                timelineName: tl.title,
+                              });
                           }}
                           disabled={!tl.selectedRecordingId}
                           className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm active:scale-95"
@@ -223,8 +232,17 @@ export default function TimelineSection({
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && tl.selectedRecordingId) {
-                                const rec = recordings.find(r => r.id === tl.selectedRecordingId);
-                                if (rec) addItemToTimeline(tl.id, { type: 'recording', recordingId: rec.id, name: rec.name, duration: rec.duration });
+                                const rec = recordings.find((r) => r.id === tl.selectedRecordingId);
+                                if (rec)
+                                  addItemToTimeline(tl.id, {
+                                    type: 'audio',
+                                    id: crypto.randomUUID(),
+                                    frequency: tl.frequency,
+                                    recordingId: rec.id,
+                                    name: rec.title,
+                                    duration: rec.duration,
+                                    timelineName: tl.title,
+                                  });
                               }
                             }}
                             className="w-full pl-8 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
@@ -248,7 +266,15 @@ export default function TimelineSection({
 
                     <div className="flex items-center gap-2 mt-auto pb-1">
                       <button
-                        onClick={() => addItemToTimeline(tl.id, { type: 'delay', duration: 5 })}
+                        onClick={() =>
+                          addItemToTimeline(tl.id, {
+                            type: 'delay',
+                            seconds: 5,
+                            id: crypto.randomUUID(),
+                            duration: 5,
+                            name: 'השהיה',
+                          })
+                        }
                         className="flex items-center gap-2 text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-all font-bold"
                       >
                         <Clock className="w-4 h-4" />
@@ -286,12 +312,12 @@ export default function TimelineSection({
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             className={`flex-shrink-0 ${padding} rounded-2xl border shadow-sm flex flex-col gap-1 ${minWidth} relative group cursor-grab active:cursor-grabbing select-none transition-all duration-300 ${
-                              item.type === 'recording' ? 'bg-white border-blue-100' : 'bg-indigo-50 border-indigo-100'
+                              item.type === 'audio' ? 'bg-white border-blue-100' : 'bg-indigo-50 border-indigo-100'
                             }`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                                {item.type === 'recording' ? 'הקלטה' : 'השהיה'}
+                                {item.type === 'audio' ? 'הקלטה' : 'השהיה'}
                               </span>
                               <GripVertical className="w-3 h-3 text-slate-300 group-hover:text-slate-400 transition-colors" />
                             </div>
@@ -388,7 +414,7 @@ export default function TimelineSection({
 
                 <div className="bg-slate-900 rounded-3xl p-6 overflow-x-auto custom-scrollbar flex items-center gap-1 min-h-[120px]">
                   {(mergedTimeline || []).map((item, idx) => {
-                    const startTime = mergedTimeline.slice(0, idx).reduce((acc, it) => acc + it.duration, 0);
+                    const startTime = mergedTimeline.slice(0, idx).reduce((acc, it) => acc + (it.type === 'delay' ? it.seconds : it.duration ?? 0), 0);
                     return (
                       <div key={item.id} className="flex items-center gap-1">
                         <button
@@ -398,11 +424,11 @@ export default function TimelineSection({
                           className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center min-w-[120px] transition-all hover:scale-105 active:scale-95 ${
                             previewIndex === idx ? 'ring-2 ring-green-400 scale-105' : ''
                           } ${
-                            item.type === 'recording' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'
+                            item.type === 'audio' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'
                           }`}
                           type="button"
                         >
-                          {item.type === 'recording' ? (
+                          {item.type === 'audio' ? (
                             <div className="flex flex-col items-center gap-1 w-full text-center">
                               <div className="flex flex-col leading-none">
                                 <span className="text-[7px] opacity-80">ציר זמן:</span>
