@@ -127,7 +127,7 @@ useEffect(() => {
   const downloadRecording = (recording: Recording) => {
     const link = document.createElement('a');
     link.href = recording.url;
-    link.download = `${recording.name}.wav`;
+    link.download = `${recording.title}.wav`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -136,17 +136,17 @@ useEffect(() => {
   const startEditing = (recording: Recording, field: 'name') => {
     setEditingId(recording.id);
     setEditingField(field);
-    setEditValue(recording.name);
+    setEditValue(recording.title);
     setError(null);
   };
 
   const saveEdit = (id: string) => {
-    if (editingField === 'name') {
+    if (editingField === 'title') {
       if (!editValue.trim()) {
         setError('שם ההקלטה לא יכול להיות ריק');
         return;
       }
-      setRecordings(prev => prev.map(r => (r.id === id ? { ...r, name: editValue.trim() } : r)));
+      setRecordings(prev => prev.map(r => (r.id === id ? { ...r, title: editValue.trim() } : r)));
     }
 
     setError(null);

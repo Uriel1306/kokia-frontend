@@ -10,11 +10,11 @@ export interface TimelineItem {
 
 export interface Recording {
   id: string;
-  name: string;
+  title: string;
   url: string;
   streamUrl?: string;
   duration: number;
-  timestamp: number;
+  createdAt: number;
   sequence?: TimelineItem[];
 }
 

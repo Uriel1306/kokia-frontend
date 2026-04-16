@@ -30,12 +30,12 @@ export const apiService = {
     }
   },
 
-  async uploadRecording(file: Blob, title: string): Promise<Recording> {
+  async uploadRecording(file: Blob, title: string, duration: number): Promise<Recording> {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', file, 'recording.webm');
       formData.append('title', title);
-
+      formData.append('duration', duration.toString()); // שלח את הזמן כטקסט
       const response = await fetch(`${API_BASE_URL}/recordings`, {
         method: 'POST',
         body: formData,

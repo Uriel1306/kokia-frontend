@@ -19,33 +19,39 @@ export const useAudioRecorder = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationRef = useRef<number>(0);
 
   const ensureMicPermission = async (): Promise<MediaStream> => {
     try {
-      return await navigator.mediaDevices.getUserMedia({ audio: true });
+      // בקשת הרשאה מפורשת
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      return stream;
     } catch (err) {
       console.error('Microphone permission error:', err);
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError('הגישה למיקרופון חסומה. לחץ על סמל המנעול ליד שורת הכתובת בדפדפן ואפשר את המיקרופון.');
-      } else {
-        setError('לא ניתן לגשת למיקרופון. אנא וודא שנתת הרשאות מתאימות.');
-      }
+      const errorMessage = (err instanceof DOMException && err.name === 'NotAllowedError')
+        ? 'הגישה למיקרופון חסומה. לחץ על סמל המנעול ליד שורת הכתובת ואפשר את המיקרופון.'
+        : 'לא ניתן לגשת למיקרופון. וודא שהוא מחובר ושיש הרשאות מתאימות.';
+      setError(errorMessage);
       throw err;
     }
   };
 
   const startRecording = async () => {
     setError(null);
+    audioChunksRef.current = []; // איפוס הבאפר
+    durationRef.current = 0;
 
     try {
       const stream = await ensureMicPermission();
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      // בדיקת פורמט נתמך (WebM הוא הסטנדרט בדפדפנים מודרניים)
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm' 
+        : 'audio/ogg';
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      durationRef.current = 0;
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -54,53 +60,54 @@ export const useAudioRecorder = ({
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const finalDuration = durationRef.current;
 
         try {
+          // העלאה לבאקנד בפורט 3001
           const uploaded = await apiService.uploadRecording(
             audioBlob,
-            recordingName || `הקלטה ${recordingsCount + 1}`
+            recordingName || `הקלטה ${recordingsCount + 1}`,finalDuration
           );
 
           const newRecording: Recording = {
             ...uploaded,
-            name: uploaded.name ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
+            // תיקון סוגריים ל-Vite/esbuild
+            title: uploaded.title ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
             duration: uploaded.duration ?? finalDuration,
-            timestamp: uploaded.timestamp ?? Date.now(),
+            createdAt: uploaded.createdAt ?? Date.now(),
             url: uploaded.streamUrl ?? `http://localhost:3001/api/recordings/${uploaded.id}/stream`,
           };
 
-          console.log('[Recording] New recording URL:', newRecording.url);
           setRecordings(prev => [newRecording, ...(prev || [])]);
-          setRecordingTime(0);
         } catch (err) {
-          console.error(err);
-          setError('שגיאה בהעלאת ההקלטה לשרת. אנא נסה שוב.');
+          console.error('Upload error:', err);
+          setError('שגיאה בהעלאת ההקלטה לשרת (3001). וודא שהבאקנד רץ.');
         } finally {
+          // סגירת המיקרופון בסיום
           stream.getTracks().forEach(track => track.stop());
         }
       };
 
-      mediaRecorder.start();
+      // התחלת הקלטה ב-Chunks של שנייה
+      mediaRecorder.start(1000);
       setIsRecording(true);
-
       setRecordingTime(0);
+
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {
-          const next = prev + 1;
-          durationRef.current = next;
-          return next;
+          durationRef.current = prev + 1;
+          return prev + 1;
         });
       }, 1000);
+
     } catch (err) {
-      // Error already handled in ensureMicPermission
-      console.error('Recording start failed:', err);
+      console.error('Failed to start recording:', err);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) {
@@ -111,7 +118,6 @@ export const useAudioRecorder = ({
   };
 
   return {
-    audioRef,
     isRecording,
     recordingTime,
     startRecording,

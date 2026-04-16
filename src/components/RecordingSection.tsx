@@ -189,11 +189,11 @@ export default function RecordingSection({
                           </div>
                         ) : (
                           <h3
-                            onClick={() => startEditing(rec, 'name')}
+                            onClick={() => startEditing(rec, 'title')}
                             className="font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
                             title="לחץ לעריכת שם"
                           >
-                            {rec.name}
+                            {rec.title}
                           </h3>
                         )}
 
@@ -201,6 +201,10 @@ export default function RecordingSection({
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {formatTime(rec.duration)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {rec.createdAt}
                           </span>
                         </div>
                       </div>

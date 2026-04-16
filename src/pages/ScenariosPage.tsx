@@ -147,9 +147,9 @@ export default function ScenariosPage() {
     return filtered.sort((a, b) => {
       switch (sortMethod) {
         case 'newest':
-          return b.timestamp - a.timestamp;
+          return b.createdAt - a.createdAt;
         case 'oldest':
-          return a.timestamp - b.timestamp;
+          return a.createdAt - b.createdAt;
         case 'alphabetical':
           return a.name.localeCompare(b.name, 'he');
         case 'numerical':
