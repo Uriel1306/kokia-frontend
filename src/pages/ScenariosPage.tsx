@@ -229,21 +229,14 @@ export default function ScenariosPage() {
 
     return filtered.sort((a, b) => {
       switch (sortMethod) {
-        case "newest":
-          return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-        case "oldest":
-          return (
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
-        case "alphabetical":
-          return a.title.localeCompare(b.title, "he");
-        case "numerical":
-          return a.title.localeCompare(b.title, undefined, {
-            numeric: true,
-            sensitivity: "base",
-          });
+        case 'newest':
+          return b.timestamp - a.timestamp;
+        case 'oldest':
+          return a.timestamp - b.timestamp;
+        case 'alphabetical':
+          return a.name.localeCompare(b.name, 'he');
+        case 'numerical':
+          return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
         default:
           return 0;
       }

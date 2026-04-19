@@ -202,6 +202,10 @@ export default function RecordingSection({
                             <Clock className="w-3 h-3" />
                             {formatTime(rec.duration)}
                           </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {rec.createdAt}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                         <span className="flex items-center gap-1">
