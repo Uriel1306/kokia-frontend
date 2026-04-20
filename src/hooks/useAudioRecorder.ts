@@ -1,6 +1,6 @@
-import { useState, useRef, type Dispatch, type SetStateAction } from 'react';
-import { apiService } from '../services/apiService';
-import { Recording } from '../types';
+import { useState, useRef, type Dispatch, type SetStateAction } from "react";
+import { apiService } from "../services/apiService";
+import { Recording } from "../types";
 
 interface UseAudioRecorderOptions {
   recordingName: string;
@@ -28,38 +28,54 @@ export const useAudioRecorder = ({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       return stream;
     } catch (err) {
-      console.error('Microphone permission error:', err);
-      const errorMessage = (err instanceof DOMException && err.name === 'NotAllowedError')
-        ? 'הגישה למיקרופון חסומה. לחץ על סמל המנעול ליד שורת הכתובת ואפשר את המיקרופון.'
-        : 'לא ניתן לגשת למיקרופון. וודא שהוא מחובר ושיש הרשאות מתאימות.';
+      console.error("Microphone permission error:", err);
+      const errorMessage =
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "הגישה למיקרופון חסומה. לחץ על סמל המנעול ליד שורת הכתובת ואפשר את המיקרופון."
+          : "לא ניתן לגשת למיקרופון. וודא שהוא מחובר ושיש הרשאות מתאימות.";
       setError(errorMessage);
       throw err;
     }
   };
-
   const getAudioDurationFromBlob = (blob: Blob): Promise<number> => {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.preload = 'metadata';
 
       const cleanup = () => {
         URL.revokeObjectURL(url);
       };
 
-      audio.addEventListener('loadedmetadata', () => {
-        cleanup();
-        const duration = audio.duration;
-        if (!duration || isNaN(duration) || duration <= 0) {
-          reject(new Error('Invalid audio duration'));
-        } else {
-          resolve(duration);
+      audio.addEventListener("loadedmetadata", () => {
+        // אם ה-duration תקין, נחזיר אותו מיד
+        if (audio.duration !== Infinity && !isNaN(audio.duration)) {
+          resolve(audio.duration);
+          cleanup();
+          return;
         }
+
+        // הטריק: קופצים לזמן מאוד רחוק בעתיד
+        audio.currentTime = 1e101;
+
+        // מחכים לאירוע שמעדכן את הזמן
+        audio.ontimeupdate = () => {
+          audio.ontimeupdate = null; // מנקים את האירוע
+          const duration = audio.duration;
+
+          if (!duration || isNaN(duration) || duration === Infinity) {
+            reject(new Error("Invalid audio duration"));
+          } else {
+            resolve(duration);
+          }
+
+          audio.currentTime = 0; // מחזירים להתחלה (ליתר ביטחון)
+          cleanup();
+        };
       });
 
-      audio.addEventListener('error', () => {
+      audio.addEventListener("error", () => {
         cleanup();
-        reject(new Error('Unable to read audio duration'));
+        reject(new Error("Unable to read audio duration"));
       });
     });
   };
@@ -71,11 +87,11 @@ export const useAudioRecorder = ({
 
     try {
       const stream = await ensureMicPermission();
-      
+
       // בדיקת פורמט נתמך (WebM הוא הסטנדרט בדפדפנים מודרניים)
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
-        ? 'audio/webm' 
-        : 'audio/ogg';
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/ogg";
 
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
@@ -87,21 +103,24 @@ export const useAudioRecorder = ({
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/wav",
+        });
         let finalDuration = durationRef.current;
 
         try {
           finalDuration = Math.round(await getAudioDurationFromBlob(audioBlob));
+          console.log("Extracted duration from audio blob:", finalDuration);
         } catch (durationError) {
-          console.error('Duration extraction failed:', durationError);
-          setError('לא ניתן לחשב את משך ההקלטה. אנא נסה שוב.');
-          stream.getTracks().forEach(track => track.stop());
+          console.error("Duration extraction failed:", durationError);
+          setError("לא ניתן לחשב את משך ההקלטה. אנא נסה שוב.");
+          stream.getTracks().forEach((track) => track.stop());
           return;
         }
 
         if (!finalDuration || isNaN(finalDuration) || finalDuration <= 0) {
-          setError('משך ההקלטה אינו תקין. אנא נסה שוב.');
-          stream.getTracks().forEach(track => track.stop());
+          setError("משך ההקלטה אינו תקין. אנא נסה שוב.");
+          stream.getTracks().forEach((track) => track.stop());
           return;
         }
 
@@ -110,25 +129,29 @@ export const useAudioRecorder = ({
           const uploaded = await apiService.uploadRecording(
             audioBlob,
             recordingName || `הקלטה ${recordingsCount + 1}`,
-            finalDuration
+            finalDuration,
           );
 
           const newRecording: Recording = {
             ...uploaded,
-            title: uploaded.title ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
-            name: uploaded.title ?? (recordingName || `הקלטה ${recordingsCount + 1}`),
+            title:
+              uploaded.title ??
+              (recordingName || `הקלטה ${recordingsCount + 1}`),
+            name:
+              uploaded.title ??
+              (recordingName || `הקלטה ${recordingsCount + 1}`),
             duration: uploaded.duration ?? finalDuration,
             createdAt: uploaded.createdAt ?? new Date().toISOString(),
             url: apiService.getStreamUrl(uploaded.id),
           };
 
-          setRecordings(prev => [newRecording, ...(prev || [])]);
+          setRecordings((prev) => [newRecording, ...(prev || [])]);
         } catch (err) {
-          console.error('Upload error:', err);
-          setError('שגיאה בהעלאת ההקלטה לשרת (3001). וודא שהבאקנד רץ.');
+          console.error("Upload error:", err);
+          setError("שגיאה בהעלאת ההקלטה לשרת (3001). וודא שהבאקנד רץ.");
         } finally {
           // סגירת המיקרופון בסיום
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach((track) => track.stop());
         }
       };
 
@@ -138,19 +161,21 @@ export const useAudioRecorder = ({
       setRecordingTime(0);
 
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => {
+        setRecordingTime((prev) => {
           durationRef.current = prev + 1;
           return prev + 1;
         });
       }, 1000);
-
     } catch (err) {
-      console.error('Failed to start recording:', err);
+      console.error("Failed to start recording:", err);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) {

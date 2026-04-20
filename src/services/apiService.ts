@@ -1,5 +1,5 @@
-import { API_BASE_URL } from '../config';
-import type { Recording, Timeline, TimelineItem, SystemStatus } from '../types';
+import { API_BASE_URL } from "../config";
+import type { Recording, Timeline, TimelineItem, SystemStatus } from "../types";
 
 // ============================================================================
 // Error Handling
@@ -9,17 +9,18 @@ export class APIError extends Error {
   constructor(
     public status: number,
     public message: string,
-    public originalError?: unknown
+    public originalError?: unknown,
   ) {
     super(message);
-    this.name = 'APIError';
+    this.name = "APIError";
   }
 }
 
 const handleResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
     const body = await response.text();
-    const errorMessage = body || `API Error: ${response.status} ${response.statusText}`;
+    const errorMessage =
+      body || `API Error: ${response.status} ${response.statusText}`;
     throw new APIError(response.status, errorMessage);
   }
 
@@ -49,10 +50,10 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}/recordings`);
       return handleResponse<Recording[]>(response);
     } catch (error) {
-      console.error('[API] getRecordings error:', error);
+      console.error("[API] getRecordings error:", error);
       throw error instanceof APIError
         ? error
-        : new APIError(500, 'Failed to fetch recordings', error);
+        : new APIError(500, "Failed to fetch recordings", error);
     }
   },
 
@@ -65,7 +66,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}/recordings/${id}`);
       return handleResponse<Recording>(response);
     } catch (error) {
-      console.error('[API] getRecording error:', error);
+      console.error("[API] getRecording error:", error);
       throw error instanceof APIError
         ? error
         : new APIError(500, `Failed to fetch recording ${id}`, error);
@@ -77,29 +78,34 @@ export const apiService = {
    * POST /recordings <- FormData (file: WAV, title: string)
    * Returns: Recording
    */
-  async uploadRecording(file: Blob, title: string, duration: number): Promise<Recording> {
+  async uploadRecording(
+    file: Blob,
+    title: string,
+    duration: number,
+  ): Promise<Recording> {
     if (!duration || isNaN(duration) || duration <= 0) {
-      throw new APIError(400, 'Invalid recording duration');
+      throw new APIError(400, "Invalid recording duration");
     }
 
     try {
       const formData = new FormData();
-      formData.append('file', file, 'recording.wav');
-      formData.append('title', title);
-      formData.append('duration', duration.toString());
+      formData.append("file", file, "recording.wav");
+      formData.append("title", title);
+      formData.append("duration", duration.toString());
+      console.log(duration);
 
       const response = await fetch(`${API_BASE_URL}/recordings`, {
-        method: 'POST',
+        method: "POST",
         body: formData,
         // Note: Do NOT set Content-Type header; browser will set it with boundary
       });
 
       return handleResponse<Recording>(response);
     } catch (error) {
-      console.error('[API] uploadRecording error:', error);
+      console.error("[API] uploadRecording error:", error);
       throw error instanceof APIError
         ? error
-        : new APIError(500, 'Failed to upload recording', error);
+        : new APIError(500, "Failed to upload recording", error);
     }
   },
 
@@ -119,15 +125,18 @@ export const apiService = {
   async deleteRecording(id: string): Promise<void> {
     try {
       const response = await fetch(`${API_BASE_URL}/recordings/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok && response.status !== 204) {
         const body = await response.text();
-        throw new APIError(response.status, body || `Failed to delete recording ${id}`);
+        throw new APIError(
+          response.status,
+          body || `Failed to delete recording ${id}`,
+        );
       }
     } catch (error) {
-      console.error('[API] deleteRecording error:', error);
+      console.error("[API] deleteRecording error:", error);
       throw error instanceof APIError
         ? error
         : new APIError(500, `Failed to delete recording ${id}`, error);
@@ -147,10 +156,10 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}/timelines`);
       return handleResponse<Timeline[]>(response);
     } catch (error) {
-      console.error('[API] getTimelines error:', error);
+      console.error("[API] getTimelines error:", error);
       throw error instanceof APIError
         ? error
-        : new APIError(500, 'Failed to fetch timelines', error);
+        : new APIError(500, "Failed to fetch timelines", error);
     }
   },
 
@@ -162,13 +171,13 @@ export const apiService = {
   async createTimeline(
     title: string,
     frequency: number,
-    sequence: TimelineItem[]
+    sequence: TimelineItem[],
   ): Promise<Timeline> {
     try {
       const cleanSequence = sequence.map((item) => {
-        if (item.type === 'audio') {
+        if (item.type === "audio") {
           return {
-            type: 'audio' as const,
+            type: "audio" as const,
             id: item.id,
             recordingId: item.recordingId,
             frequency: item.frequency,
@@ -179,7 +188,7 @@ export const apiService = {
         }
 
         return {
-          type: 'delay' as const,
+          type: "delay" as const,
           id: item.id,
           seconds: item.seconds,
           duration: item.duration,
@@ -188,19 +197,19 @@ export const apiService = {
       });
 
       const response = await fetch(`${API_BASE_URL}/timelines`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ title, frequency, sequence: cleanSequence }),
       });
 
       return handleResponse<Timeline>(response);
     } catch (error) {
-      console.error('[API] createTimeline error:', error);
+      console.error("[API] createTimeline error:", error);
       throw error instanceof APIError
         ? error
-        : new APIError(500, 'Failed to create timeline', error);
+        : new APIError(500, "Failed to create timeline", error);
     }
   },
 
@@ -211,15 +220,18 @@ export const apiService = {
   async deleteTimeline(id: string): Promise<void> {
     try {
       const response = await fetch(`${API_BASE_URL}/timelines/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok && response.status !== 204) {
         const body = await response.text();
-        throw new APIError(response.status, body || `Failed to delete timeline ${id}`);
+        throw new APIError(
+          response.status,
+          body || `Failed to delete timeline ${id}`,
+        );
       }
     } catch (error) {
-      console.error('[API] deleteTimeline error:', error);
+      console.error("[API] deleteTimeline error:", error);
       throw error instanceof APIError
         ? error
         : new APIError(500, `Failed to delete timeline ${id}`, error);
@@ -239,10 +251,10 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}/status`);
       return handleResponse<SystemStatus>(response);
     } catch (error) {
-      console.error('[API] getStatus error:', error);
+      console.error("[API] getStatus error:", error);
       throw error instanceof APIError
         ? error
-        : new APIError(500, 'Failed to fetch system status', error);
+        : new APIError(500, "Failed to fetch system status", error);
     }
   },
 };

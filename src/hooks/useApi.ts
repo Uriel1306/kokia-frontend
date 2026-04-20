@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { apiService, APIError } from '../services/apiService';
-import type { Recording, Timeline, TimelineItem, SystemStatus } from '../types';
+import { useState, useCallback } from "react";
+import { apiService, APIError } from "../services/apiService";
+import type { Recording, Timeline, TimelineItem, SystemStatus } from "../types";
 
 // ============================================================================
 // useApi Hook - React Hook for API interactions with state management
@@ -17,7 +17,9 @@ export const useApi = () => {
   // RECORDINGS
   // =========================================================================
 
-  const [recordingsState, setRecordingsState] = useState<UseApiState<Recording[]>>({
+  const [recordingsState, setRecordingsState] = useState<
+    UseApiState<Recording[]>
+  >({
     data: null,
     loading: false,
     error: null,
@@ -30,7 +32,8 @@ export const useApi = () => {
       setRecordingsState({ data, loading: false, error: null });
       return data;
     } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
+      const apiError =
+        error instanceof APIError ? error : new APIError(500, "Unknown error");
       setRecordingsState({ data: null, loading: false, error: apiError });
       throw apiError;
     }
@@ -43,28 +46,46 @@ export const useApi = () => {
       setRecordingsState({ data: [data], loading: false, error: null });
       return data;
     } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
-      setRecordingsState((prev) => ({ ...prev, loading: false, error: apiError }));
+      const apiError =
+        error instanceof APIError ? error : new APIError(500, "Unknown error");
+      setRecordingsState((prev) => ({
+        ...prev,
+        loading: false,
+        error: apiError,
+      }));
       throw apiError;
     }
   }, []);
 
-  const uploadRecording = useCallback(async (file: Blob, title: string, duration: number) => {
-    setRecordingsState((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      const data = await apiService.uploadRecording(file, title, duration);
-      setRecordingsState((prev) => ({
-        data: prev.data ? [...prev.data, data] : [data],
-        loading: false,
-        error: null,
-      }));
-      return data;
-    } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
-      setRecordingsState((prev) => ({ ...prev, loading: false, error: apiError }));
-      throw apiError;
-    }
-  }, []);
+  const uploadRecording = useCallback(
+    async (file: Blob, title: string, duration: number) => {
+      setRecordingsState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        console.log("duration");
+
+        console.log(duration);
+        const data = await apiService.uploadRecording(file, title, duration);
+        setRecordingsState((prev) => ({
+          data: prev.data ? [...prev.data, data] : [data],
+          loading: false,
+          error: null,
+        }));
+        return data;
+      } catch (error) {
+        const apiError =
+          error instanceof APIError
+            ? error
+            : new APIError(500, "Unknown error");
+        setRecordingsState((prev) => ({
+          ...prev,
+          loading: false,
+          error: apiError,
+        }));
+        throw apiError;
+      }
+    },
+    [],
+  );
 
   const deleteRecording = useCallback(async (id: string) => {
     setRecordingsState((prev) => ({ ...prev, loading: true, error: null }));
@@ -76,8 +97,13 @@ export const useApi = () => {
         error: null,
       }));
     } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
-      setRecordingsState((prev) => ({ ...prev, loading: false, error: apiError }));
+      const apiError =
+        error instanceof APIError ? error : new APIError(500, "Unknown error");
+      setRecordingsState((prev) => ({
+        ...prev,
+        loading: false,
+        error: apiError,
+      }));
       throw apiError;
     }
   }, []);
@@ -90,11 +116,13 @@ export const useApi = () => {
   // TIMELINES
   // =========================================================================
 
-  const [timelinesState, setTimelinesState] = useState<UseApiState<Timeline[]>>({
-    data: null,
-    loading: false,
-    error: null,
-  });
+  const [timelinesState, setTimelinesState] = useState<UseApiState<Timeline[]>>(
+    {
+      data: null,
+      loading: false,
+      error: null,
+    },
+  );
 
   const fetchTimelines = useCallback(async () => {
     setTimelinesState({ data: null, loading: true, error: null });
@@ -103,28 +131,43 @@ export const useApi = () => {
       setTimelinesState({ data, loading: false, error: null });
       return data;
     } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
+      const apiError =
+        error instanceof APIError ? error : new APIError(500, "Unknown error");
       setTimelinesState({ data: null, loading: false, error: apiError });
       throw apiError;
     }
   }, []);
 
-  const createTimeline = useCallback(async (title: string, frequency: number, sequence: TimelineItem[]) => {
-    setTimelinesState((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      const data = await apiService.createTimeline(title, frequency, sequence);
-      setTimelinesState((prev) => ({
-        data: prev.data ? [...prev.data, data] : [data],
-        loading: false,
-        error: null,
-      }));
-      return data;
-    } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
-      setTimelinesState((prev) => ({ ...prev, loading: false, error: apiError }));
-      throw apiError;
-    }
-  }, []);
+  const createTimeline = useCallback(
+    async (title: string, frequency: number, sequence: TimelineItem[]) => {
+      setTimelinesState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const data = await apiService.createTimeline(
+          title,
+          frequency,
+          sequence,
+        );
+        setTimelinesState((prev) => ({
+          data: prev.data ? [...prev.data, data] : [data],
+          loading: false,
+          error: null,
+        }));
+        return data;
+      } catch (error) {
+        const apiError =
+          error instanceof APIError
+            ? error
+            : new APIError(500, "Unknown error");
+        setTimelinesState((prev) => ({
+          ...prev,
+          loading: false,
+          error: apiError,
+        }));
+        throw apiError;
+      }
+    },
+    [],
+  );
 
   const deleteTimeline = useCallback(async (id: string) => {
     setTimelinesState((prev) => ({ ...prev, loading: true, error: null }));
@@ -136,8 +179,13 @@ export const useApi = () => {
         error: null,
       }));
     } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
-      setTimelinesState((prev) => ({ ...prev, loading: false, error: apiError }));
+      const apiError =
+        error instanceof APIError ? error : new APIError(500, "Unknown error");
+      setTimelinesState((prev) => ({
+        ...prev,
+        loading: false,
+        error: apiError,
+      }));
       throw apiError;
     }
   }, []);
@@ -159,7 +207,8 @@ export const useApi = () => {
       setStatusState({ data, loading: false, error: null });
       return data;
     } catch (error) {
-      const apiError = error instanceof APIError ? error : new APIError(500, 'Unknown error');
+      const apiError =
+        error instanceof APIError ? error : new APIError(500, "Unknown error");
       setStatusState({ data: null, loading: false, error: apiError });
       throw apiError;
     }

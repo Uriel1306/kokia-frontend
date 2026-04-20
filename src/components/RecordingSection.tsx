@@ -1,9 +1,17 @@
-import { AnimatePresence, motion } from 'motion/react';
-import { ListMusic, Radio, Clock, Save, Trash2, Mic, Square } from 'lucide-react';
-import type { Dispatch, SetStateAction } from 'react';
-import { Recording } from '../types';
-import AudioPlayer from './Common/AudioPlayer';
-import RecordingCard from './recordings/RecordingCard';
+import { AnimatePresence, motion } from "motion/react";
+import {
+  ListMusic,
+  Radio,
+  Clock,
+  Save,
+  Trash2,
+  Mic,
+  Square,
+} from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { Recording } from "../types";
+import AudioPlayer from "./Common/AudioPlayer";
+import RecordingCard from "./recordings/RecordingCard";
 
 interface RecordingSectionProps {
   error: string | null;
@@ -18,10 +26,10 @@ interface RecordingSectionProps {
   currentlyPlaying: string | null;
   playRecording: (recording: Recording) => void;
   editingId: string | null;
-  editingField: 'title' | null;
+  editingField: "title" | null;
   editValue: string;
   setEditValue: Dispatch<SetStateAction<string>>;
-  startEditing: (recording: Recording, field: 'title') => void;
+  startEditing: (recording: Recording, field: "title") => void;
   saveEdit: (id: string) => void;
   deleteRecording: (id: string) => void;
   downloadRecording: (recording: Recording) => void;
@@ -59,8 +67,12 @@ export default function RecordingSection({
       className="space-y-8"
     >
       <header className="text-center space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900 font-brand">יצירת הקלטות</h1>
-        <p className="text-slate-500">נהל את ההקלטות שלך עם פרמטרים מותאמים אישית</p>
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900 font-brand">
+          יצירת הקלטות
+        </h1>
+        <p className="text-slate-500">
+          נהל את ההקלטות שלך עם פרמטרים מותאמים אישית
+        </p>
       </header>
 
       <AnimatePresence>
@@ -72,7 +84,12 @@ export default function RecordingSection({
             className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-center justify-between"
           >
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 font-bold">✕</button>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-600 font-bold"
+            >
+              ✕
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -88,7 +105,9 @@ export default function RecordingSection({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 block">שם ההקלטה</label>
+              <label className="text-sm font-medium text-slate-700 block">
+                שם ההקלטה
+              </label>
               <input
                 type="text"
                 value={recordingName}
@@ -111,7 +130,9 @@ export default function RecordingSection({
                 className="group relative flex items-center justify-center w-20 h-20 bg-red-500 hover:bg-red-600 rounded-full transition-all shadow-lg shadow-red-200 active:scale-95"
               >
                 <Mic className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
-                <span className="absolute -bottom-8 text-sm font-medium text-red-500">הקלט</span>
+                <span className="absolute -bottom-8 text-sm font-medium text-red-500">
+                  הקלט
+                </span>
               </button>
             ) : (
               <button
@@ -120,7 +141,9 @@ export default function RecordingSection({
               >
                 <Square className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
                 <div className="absolute inset-0 rounded-full border-4 border-red-500/30 animate-ping" />
-                <span className="absolute -bottom-8 text-sm font-medium text-slate-800">עצור</span>
+                <span className="absolute -bottom-8 text-sm font-medium text-slate-800">
+                  עצור
+                </span>
               </button>
             )}
           </div>
@@ -166,14 +189,18 @@ export default function RecordingSection({
                         onToggle={() => playRecording(rec)}
                         className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
                           currentlyPlaying === rec.id
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                            ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                            : "bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600"
                         }`}
-                        label={currentlyPlaying === rec.id ? 'עצור השמעה' : 'הפעל הקלטה'}
+                        label={
+                          currentlyPlaying === rec.id
+                            ? "עצור השמעה"
+                            : "הפעל הקלטה"
+                        }
                       />
 
                       <div className="flex-1 min-w-0">
-                        {editingId === rec.id && editingField === 'title' ? (
+                        {editingId === rec.id && editingField === "title" ? (
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
@@ -181,15 +208,20 @@ export default function RecordingSection({
                               onChange={(e) => setEditValue(e.target.value)}
                               className="w-full px-2 py-1 border border-blue-300 rounded outline-none text-slate-900 font-semibold"
                               autoFocus
-                              onKeyDown={(e) => e.key === 'Enter' && saveEdit(rec.id)}
+                              onKeyDown={(e) =>
+                                e.key === "Enter" && saveEdit(rec.id)
+                              }
                             />
-                            <button onClick={() => saveEdit(rec.id)} className="text-blue-600 hover:text-blue-800">
+                            <button
+                              onClick={() => saveEdit(rec.id)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
                               <Save className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
                           <h3
-                            onClick={() => startEditing(rec, 'title')}
+                            onClick={() => startEditing(rec, "title")}
                             className="font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
                             title="לחץ לעריכת שם"
                           >
@@ -205,11 +237,6 @@ export default function RecordingSection({
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {rec.createdAt}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          {rec.createdAt}
                           </span>
                         </div>
                       </div>
